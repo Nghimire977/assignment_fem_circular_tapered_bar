@@ -77,16 +77,6 @@ print()
 
 print(f"Analytical displacement = {exact:.6f} mm\n")
 
-print("{:<10}{:<20}{:<15}".format("n", "FEM Disp (mm)", "% Error"))
-print("-"*45)
-
-for n in [1, 2, 3]:
-    ufem = fem_tapered_bar(L, d1, d2, E, P, n)
-    error = abs((ufem - exact) / exact) * 100
-
-    print("{:<10}{:<20.6f}{:<15.4f}".format(n, ufem, error))
-
-
 # ------------------------------------------------
 # Comparison and Graph
 # ------------------------------------------------
