@@ -1,0 +1,165 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# Input Data
+# -----------------------------
+L = 1000.0      # mm
+d1 = 50.0       # mm
+d2 = 25.0       # mm
+E = 200000.0    # N/mm²
+P = 10000.0     # N
+
+# -----------------------------
+# Analytical Solution
+# -----------------------------
+def analytical_displacement(L, d1, d2, E, P):
+    """
+    Exact displacement of a linearly tapered circular bar
+    """
+    return (4 * P * L) / (np.pi * E * d1 * d2)
+
+
+# -----------------------------
+# FEM Solution
+# -----------------------------
+def fem_tapered_bar(L, d1, d2, E, P, n):
+
+    Le = L / n
+    nnodes = n + 1
+
+    # Global stiffness matrix
+    K = np.zeros((nnodes, nnodes))
+
+    for i in range(n):
+
+        # Midpoint location of element
+        x_mid = (i + 0.5) * Le
+
+        # Diameter at midpoint
+        d_mid = d1 + (d2 - d1) * (x_mid / L)
+
+        # Cross-sectional area
+        A = np.pi * d_mid**2 / 4
+
+        # Element stiffness matrix
+        ke = (A * E / Le) * np.array([[1, -1],
+                                      [-1, 1]])
+
+        # Assembly
+        K[i:i+2, i:i+2] += ke
+
+    # Force vector
+    F = np.zeros(nnodes)
+    F[-1] = P
+
+    # Apply boundary condition (u1 = 0)
+    K_reduced = K[1:, 1:]
+    F_reduced = F[1:]
+
+    # Solve
+    U = np.zeros(nnodes)
+    U[1:] = np.linalg.solve(K_reduced, F_reduced)
+
+    return U[-1]
+
+exact = analytical_displacement(L, d1, d2, E, P)
+
+print("="*65)
+print("     FEM ANALYSIS OF TAPERED CIRCULAR BAR")
+print("="*65)
+print(f"Length               = {L:.1f} mm")
+print(f"Diameter at fixed end= {d1:.1f} mm")
+print(f"Diameter at free end = {d2:.1f} mm")
+print(f"Young's Modulus      = {E:.0f} N/mm²")
+print(f"Applied Load         = {P:.0f} N")
+print()
+
+print(f"Analytical displacement = {exact:.6f} mm\n")
+
+print("{:<10}{:<20}{:<15}".format("n", "FEM Disp (mm)", "% Error"))
+print("-"*45)
+
+for n in [1, 2, 3]:
+    ufem = fem_tapered_bar(L, d1, d2, E, P, n)
+    error = abs((ufem - exact) / exact) * 100
+
+    print("{:<10}{:<20.6f}{:<15.4f}".format(n, ufem, error))
+
+
+# ------------------------------------------------
+# Comparison and Graph
+# ------------------------------------------------
+
+# Number of elements to analyze
+n_values = [1, 2, 3]
+
+fem_results = []
+errors = []
+
+# Analytical result
+analytical = analytical_displacement(L, d1, d2, E, P)
+
+print("\n")
+print("="*65)
+print("Comparison of FEM and Analytical Solution")
+print("="*65)
+print(f"{'Elements':<12}{'FEM (mm)':<18}{'Analytical (mm)':<20}{'Error (%)'}")
+print("-"*65)
+
+for n in n_values:
+
+    u = fem_tapered_bar(L, d1, d2, E, P, n)
+
+    fem_results.append(u)
+
+    error = abs((u - analytical) / analytical) * 100
+    errors.append(error)
+
+    print(f"{n:<12}{u:<18.6f}{analytical:<20.6f}{error:.4f}")
+
+# ------------------------------------------------
+# Plot 1 : FEM vs Analytical
+# ------------------------------------------------
+
+plt.figure(figsize=(8,5))
+
+plt.plot(n_values,
+         fem_results,
+         'o-b',
+         linewidth=2,
+         markersize=8,
+         label='FEM')
+
+plt.plot(n_values,
+         [analytical]*len(n_values),
+         'r--',
+         linewidth=2,
+         label='Analytical')
+
+plt.xlabel("Number of Elements")
+plt.ylabel("Free-end Displacement (mm)")
+plt.title("FEM vs Analytical Displacement")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+
+# ------------------------------------------------
+# Plot 2 : Percentage Error
+# ------------------------------------------------
+
+plt.figure(figsize=(8,5))
+
+plt.plot(n_values,
+         errors,
+         's-g',
+         linewidth=2,
+         markersize=8)
+
+plt.xlabel("Number of Elements")
+plt.ylabel("Percentage Error (%)")
+plt.title("FEM Error Convergence")
+plt.grid(True)
+plt.tight_layout()
+
+plt.show()
